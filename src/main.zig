@@ -123,7 +123,9 @@ const Attribute = struct {
 
 fn Index(kind: @typeInfo(Constant).@"enum".tag_type) type {
     return enum(u16) {
-        const unused = kind;
+        comptime {
+            _ = kind;
+        }
         _,
     };
 }
