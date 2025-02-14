@@ -128,7 +128,15 @@ const Constant = union(Constant.Kind) {
     fn read(stream: *std.io.FixedBufferStream([]const u8)) !@This() {
         const reader = stream.reader();
         return switch (try reader.readEnum(Kind, .big)) {
-            .integer, .float, .long, .double, .utf8 => @panic("TODO"),
+            .integer => .{ .integer = try reader.readInt(i32, .big) },
+            .float => .{ .float = @bitCast(try reader.readInt(u32, .big)) },
+            .long, .double => @panic("TODO"),
+            .utf8 => blk: {
+                const len = try reader.readInt(u16, .big);
+                if (stream.buffer.len - stream.pos < len) return error.EndOfStream;
+                defer stream.pos += len;
+                break :blk .{ .utf8 = stream.buffer[stream.buffer.len..][0..len] };
+            },
             inline else => |tag| @unionInit(
                 @This(),
                 @tagName(tag),
