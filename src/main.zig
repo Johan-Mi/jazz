@@ -7,7 +7,9 @@ pub fn main() !void {
 
     const buffer = try std.io.getStdIn().readToEndAlloc(allocator, std.math.maxInt(usize));
     const class_file: ClassFile = try .init(buffer, allocator);
-    std.log.debug("{}", .{class_file});
+    std.log.debug("{s}", .{
+        try std.json.stringifyAlloc(allocator, class_file, .{ .whitespace = .indent_2 }),
+    });
 }
 
 const ClassFile = struct {
