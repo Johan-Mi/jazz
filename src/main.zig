@@ -151,7 +151,7 @@ const Constant = union(Constant.Kind) {
                 const len = try reader.readInt(u16, .big);
                 if (stream.buffer.len - stream.pos < len) return error.EndOfStream;
                 defer stream.pos += len;
-                break :blk .{ .utf8 = stream.buffer[stream.buffer.len..][0..len] };
+                break :blk .{ .utf8 = stream.buffer[stream.pos..][0..len] };
             },
             .invalid => return error.InvalidValue,
             inline else => |tag| @unionInit(
@@ -248,7 +248,7 @@ const Attribute = struct {
         const len = try reader.readInt(u32, .big);
         if (stream.buffer.len - stream.pos < len) return error.EndOfStream;
         defer stream.pos += len;
-        return .{ .name = name, .info = stream.buffer[stream.buffer.len..][0..len] };
+        return .{ .name = name, .info = stream.buffer[stream.pos..][0..len] };
     }
 };
 
