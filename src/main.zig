@@ -154,13 +154,13 @@ const Constant = union(Constant.Kind) {
                 break :blk .{ .utf8 = stream.buffer[stream.pos..][0..len] };
             },
             .invalid => return error.InvalidValue,
-            inline else => |tag| @unionInit(
-                @This(),
-                @tagName(tag),
-                try reader.readStructEndian(@TypeOf( // We have `@FieldType` at home
+            inline else => |tag| blk: {
+                const T = @TypeOf( // We have `@FieldType` at home
                     @field(@unionInit(@This(), @tagName(tag), undefined), @tagName(tag)),
-                ), .big),
-            ),
+                );
+                const raw = try reader.readBytesNoEof(@bitSizeOf(T) / std.mem.byte_size_in_bits);
+                break :blk @unionInit(@This(), @tagName(tag), @bitCast(raw));
+            },
         };
     }
 };
