@@ -27,7 +27,13 @@ const ClassFile = struct {
             std.math.sub(u16, try reader.readInt(u16, .big), 1) catch
                 return error.InvalidConstantPoolSize,
         );
-        for (constants) |*it| it.* = try .read(&stream);
+        {
+            var pending_large = false;
+            for (constants) |*it| {
+                it.* = if (pending_large) .invalid else try .read(&stream);
+                pending_large = Constant.Kind.isLarge(it.*);
+            }
+        }
         try reader.skipBytes(2 + 2 + 2, .{}); // access_flags, this_class, super_class
         try reader.skipBytes(try reader.readInt(u16, .big) * 2, .{}); // interfaces
         const fields = try arena.alloc(Field, try reader.readInt(u16, .big));
@@ -56,6 +62,14 @@ const Constant = union(Constant.Kind) {
         method_handle = 15,
         method_type = 16,
         invoke_dynamic = 18,
+        invalid = 0,
+
+        fn isLarge(self: @This()) bool {
+            return switch (self) {
+                .long, .double => true,
+                else => false,
+            };
+        }
     };
 
     class: Class,
@@ -72,6 +86,7 @@ const Constant = union(Constant.Kind) {
     method_handle: MethodHandle,
     method_type: MethodType,
     invoke_dynamic: InvokeDynamic,
+    invalid,
 
     const Class = extern struct {
         name: Index(.utf8),
@@ -130,13 +145,15 @@ const Constant = union(Constant.Kind) {
         return switch (try reader.readEnum(Kind, .big)) {
             .integer => .{ .integer = try reader.readInt(i32, .big) },
             .float => .{ .float = @bitCast(try reader.readInt(u32, .big)) },
-            .long, .double => @panic("TODO"),
+            .long => .{ .long = try reader.readInt(i64, .big) },
+            .double => .{ .double = @bitCast(try reader.readInt(u64, .big)) },
             .utf8 => blk: {
                 const len = try reader.readInt(u16, .big);
                 if (stream.buffer.len - stream.pos < len) return error.EndOfStream;
                 defer stream.pos += len;
                 break :blk .{ .utf8 = stream.buffer[stream.buffer.len..][0..len] };
             },
+            .invalid => return error.InvalidValue,
             inline else => |tag| @unionInit(
                 @This(),
                 @tagName(tag),
