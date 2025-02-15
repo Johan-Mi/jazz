@@ -192,8 +192,8 @@ const Field = struct {
     fn read(stream: *std.io.FixedBufferStream([]const u8), arena: std.mem.Allocator) !@This() {
         const reader = stream.reader();
         const raw_access = try reader.readInt(u16, .big);
-        const name = try reader.readEnum(Index(.utf8), .big);
-        const descriptor = try reader.readEnum(Index(.utf8), .big);
+        const name = try readIndex(Index(.utf8), reader);
+        const descriptor = try readIndex(Index(.utf8), reader);
         const attributes = try arena.alloc(Attribute, try reader.readInt(u16, .big));
         for (attributes) |*it| it.* = try .read(stream);
         return .{
@@ -230,8 +230,8 @@ const Method = struct {
     fn read(stream: *std.io.FixedBufferStream([]const u8), arena: std.mem.Allocator) !@This() {
         const reader = stream.reader();
         const raw_access = try reader.readInt(u16, .big);
-        const name = try reader.readEnum(Index(.utf8), .big);
-        const descriptor = try reader.readEnum(Index(.utf8), .big);
+        const name = try readIndex(Index(.utf8), reader);
+        const descriptor = try readIndex(Index(.utf8), reader);
         const attributes = try arena.alloc(Attribute, try reader.readInt(u16, .big));
         for (attributes) |*it| it.* = try .read(stream);
         return .{
@@ -249,7 +249,7 @@ const Attribute = struct {
 
     fn read(stream: *std.io.FixedBufferStream([]const u8)) !@This() {
         const reader = stream.reader();
-        const name = try reader.readEnum(Index(.utf8), .big);
+        const name = try readIndex(Index(.utf8), reader);
         const len = try reader.readInt(u32, .big);
         if (stream.buffer.len - stream.pos < len) return error.EndOfStream;
         defer stream.pos += len;
@@ -269,3 +269,7 @@ fn Index(kind: Constant.Kind) type {
 const UntypedConstantIndex = enum(u16) { _ };
 
 const BootstrapMethodIndex = enum(u16) { _ };
+
+fn readIndex(T: type, reader: anytype) !T {
+    return @enumFromInt(try reader.readInt(@typeInfo(T).@"enum".tag_type, .big));
+}
