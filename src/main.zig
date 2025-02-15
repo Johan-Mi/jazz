@@ -1,3 +1,4 @@
+const builtin = @import("builtin");
 const std = @import("std");
 
 pub fn main() !void {
@@ -158,8 +159,12 @@ const Constant = union(Constant.Kind) {
                 const T = @TypeOf( // We have `@FieldType` at home
                     @field(@unionInit(@This(), @tagName(tag), undefined), @tagName(tag)),
                 );
-                const raw = try reader.readBytesNoEof(@bitSizeOf(T) / std.mem.byte_size_in_bits);
-                break :blk @unionInit(@This(), @tagName(tag), @bitCast(raw));
+                var raw align(@alignOf(T)) = try reader.readBytesNoEof(@bitSizeOf(T) / std.mem.byte_size_in_bits);
+                const t = std.mem.bytesAsValue(T, &raw);
+                if (builtin.cpu.arch.endian() == .little) {
+                    std.mem.byteSwapAllFields(T, t);
+                }
+                break :blk @unionInit(@This(), @tagName(tag), t.*);
             },
         };
     }
