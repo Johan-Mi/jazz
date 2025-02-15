@@ -116,7 +116,7 @@ const Constant = union(Constant.Kind) {
         descriptor: Index(.utf8),
     };
 
-    const MethodHandle = extern struct {
+    const MethodHandle = packed struct {
         reference_kind: enum(u8) {
             get_field = 1,
             get_static = 2,
