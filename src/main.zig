@@ -45,7 +45,10 @@ const ClassFile = struct {
         for (methods) |*it| it.* = try .read(&stream, arena);
         const attributes = try arena.alloc(Attribute, try reader.readInt(u16, .big));
         for (attributes) |*it| it.* = try .read(&stream);
-        return .{ .constants = constants, .fields = fields, .attributes = attributes };
+        var self: ClassFile =
+            .{ .constants = constants, .fields = fields, .attributes = attributes };
+        try adjustIndices(&self, constants);
+        return self;
     }
 };
 
@@ -261,9 +264,7 @@ const Attribute = struct {
 
 fn Index(kind: Constant.Kind) type {
     return enum(u16) {
-        comptime {
-            _ = kind;
-        }
+        const constant_kind = kind;
         _,
     };
 }
@@ -274,4 +275,23 @@ const BootstrapMethodIndex = enum(u16) { _ };
 
 fn readIndex(T: type, reader: anytype) !T {
     return @enumFromInt(try reader.readInt(@typeInfo(T).@"enum".tag_type, .big));
+}
+
+fn adjustIndices(t: anytype, constants: []const Constant) !void {
+    const T = @TypeOf(t.*);
+    switch (@typeInfo(T)) {
+        .@"struct" => |it| inline for (it.fields) |field| {
+            try adjustIndices(&@field(t.*, field.name), constants);
+        },
+        .@"union" => switch (t) {
+            inline else => |*it| try adjustIndices(it, constants),
+        },
+        .@"enum" => if (@hasDecl(T, "constant_kind")) {
+            t.* -%= 1;
+            if (t.* < constants.len) {
+                if (T.constant_kind != constants[t.*]) return error.IllTypedConstantPoolIndex;
+            } else return error.InvalidConstantPoolIndex;
+        },
+        else => {},
+    }
 }
