@@ -1,6 +1,3 @@
-const builtin = @import("builtin");
-const std = @import("std");
-
 pub fn main() !void {
     var arena: std.heap.ArenaAllocator = .init(std.heap.page_allocator);
     const allocator = arena.allocator();
@@ -293,3 +290,6 @@ fn adjustIndices(t: anytype, constants: []const Constant) !void {
         else => {},
     }
 }
+
+const builtin = @import("builtin");
+const std = @import("std");
