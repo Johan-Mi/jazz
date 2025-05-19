@@ -159,12 +159,12 @@ const Constant = union(Constant.Kind) {
                 const T = @TypeOf( // We have `@FieldType` at home
                     @field(@unionInit(@This(), @tagName(tag), undefined), @tagName(tag)),
                 );
-                var raw align(@alignOf(T)) = try reader.readBytesNoEof(@bitSizeOf(T) / std.mem.byte_size_in_bits);
-                const t = std.mem.bytesAsValue(T, &raw);
+                var t: T =
+                    @bitCast(try reader.readBytesNoEof(@bitSizeOf(T) / std.mem.byte_size_in_bits));
                 if (builtin.cpu.arch.endian() == .little) {
-                    std.mem.byteSwapAllFields(T, t);
+                    std.mem.byteSwapAllFields(T, &t);
                 }
-                break :blk @unionInit(@This(), @tagName(tag), t.*);
+                break :blk @unionInit(@This(), @tagName(tag), t);
             },
         };
     }
